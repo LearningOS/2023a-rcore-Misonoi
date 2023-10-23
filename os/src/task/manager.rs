@@ -1,4 +1,5 @@
 //!Implementation of [`TaskManager`]
+use alloc::borrow::ToOwned;
 use super::TaskControlBlock;
 use crate::sync::UPSafeCell;
 use alloc::collections::VecDeque;
@@ -23,6 +24,10 @@ impl TaskManager {
     }
     /// Take a process out of the ready queue
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
+        // self.ready_queue.iter().min_by(|x, y| {
+        //     x.inner_exclusive_access().stride.cmp(&y.inner_exclusive_access().stride)
+        // }).map(|arc| arc.to_owned())
+
         self.ready_queue.pop_front()
     }
 }

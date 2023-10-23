@@ -11,6 +11,7 @@ use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use lazy_static::*;
+use crate::syscall::process::LAB_MANAGER;
 
 /// Processor management structure
 pub struct Processor {
@@ -59,8 +60,14 @@ pub fn run_tasks() {
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
+
+            // task_inner.update_stride();
+
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
             task_inner.task_status = TaskStatus::Running;
+
+            LAB_MANAGER.exclusive_access().update_task_info(task.pid.0);
+
             // release coming task_inner manually
             drop(task_inner);
             // release coming task TCB manually
@@ -74,6 +81,10 @@ pub fn run_tasks() {
             warn!("no tasks available in run_tasks");
         }
     }
+}
+
+pub fn current_pid() -> usize {
+    PROCESSOR.exclusive_access().current.as_ref().unwrap().getpid()
 }
 
 /// Get current task through take, leaving a None in its place

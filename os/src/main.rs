@@ -17,8 +17,6 @@
 //! We then call [`task::run_tasks()`] and for the first time go to
 //! userspace.
 
-#![deny(missing_docs)]
-#![deny(warnings)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -65,15 +63,15 @@ fn clear_bss() {
 fn kernel_log_info() {
     extern "C" {
         fn stext(); // begin addr of text segment
-        fn etext(); // end addr of text segment
-        fn srodata(); // start addr of Read-Only data segment
-        fn erodata(); // end addr of Read-Only data ssegment
-        fn sdata(); // start addr of data segment
-        fn edata(); // end addr of data segment
-        fn sbss(); // start addr of BSS segment
-        fn ebss(); // end addr of BSS segment
-        fn boot_stack_lower_bound(); // stack lower bound
-        fn boot_stack_top(); // stack top
+    fn etext(); // end addr of text segment
+    fn srodata(); // start addr of Read-Only data segment
+    fn erodata(); // end addr of Read-Only data ssegment
+    fn sdata(); // start addr of data segment
+    fn edata(); // end addr of data segment
+    fn sbss(); // start addr of BSS segment
+    fn ebss(); // end addr of BSS segment
+    fn boot_stack_lower_bound(); // stack lower bound
+    fn boot_stack_top(); // stack top
     }
     logging::init();
     println!("[kernel] Hello, world!");

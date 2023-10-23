@@ -1,6 +1,8 @@
 //! File and filesystem-related syscalls
 use crate::mm::translated_byte_buffer;
 use crate::sbi::console_getchar;
+use crate::syscall::process::LAB_MANAGER;
+use crate::syscall::SYSCALL_WRITE;
 use crate::task::{current_task, current_user_token, suspend_current_and_run_next};
 
 const FD_STDIN: usize = 0;
@@ -8,6 +10,8 @@ const FD_STDOUT: usize = 1;
 
 /// write buf of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+    LAB_MANAGER.exclusive_access().update_syscall(SYSCALL_WRITE);
+
     trace!("kernel:pid[{}] sys_write", current_task().unwrap().pid.0);
     match fd {
         FD_STDOUT => {

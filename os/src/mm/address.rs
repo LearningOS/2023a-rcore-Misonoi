@@ -207,15 +207,15 @@ impl StepByOne for VirtPageNum {
 #[derive(Copy, Clone)]
 /// a simple range structure for type T
 pub struct SimpleRange<T>
-where
-    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+    where
+        T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
     l: T,
     r: T,
 }
 impl<T> SimpleRange<T>
-where
-    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+    where
+        T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
     pub fn new(start: T, end: T) -> Self {
         assert!(start <= end, "start {:?} > end {:?}!", start, end);
@@ -229,8 +229,8 @@ where
     }
 }
 impl<T> IntoIterator for SimpleRange<T>
-where
-    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+    where
+        T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
     type Item = T;
     type IntoIter = SimpleRangeIterator<T>;
@@ -240,23 +240,23 @@ where
 }
 /// iterator for the simple range structure
 pub struct SimpleRangeIterator<T>
-where
-    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+    where
+        T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
     current: T,
     end: T,
 }
 impl<T> SimpleRangeIterator<T>
-where
-    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+    where
+        T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
     pub fn new(l: T, r: T) -> Self {
         Self { current: l, end: r }
     }
 }
 impl<T> Iterator for SimpleRangeIterator<T>
-where
-    T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
+    where
+        T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
