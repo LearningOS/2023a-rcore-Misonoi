@@ -1,12 +1,15 @@
 //! File and filesystem-related syscalls
 
 use crate::mm::translated_byte_buffer;
-use crate::task::current_user_token;
+use crate::syscall::SYSCALL_WRITE;
+use crate::task::{current_user_token, update_syscall};
 
 const FD_STDOUT: usize = 1;
 
 /// write buf of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+    update_syscall(SYSCALL_WRITE);
+
     trace!("kernel: sys_write");
     match fd {
         FD_STDOUT => {

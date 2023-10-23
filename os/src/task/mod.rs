@@ -23,6 +23,9 @@ use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
+use crate::console::print;
+use crate::syscall::process::TaskInfo;
+use crate::timer::get_time_ms;
 
 /// The task manager, where all the tasks are managed.
 ///
@@ -79,6 +82,10 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let next_task = &mut inner.tasks[0];
         next_task.task_status = TaskStatus::Running;
+
+        next_task.is_already_running = true;
+        next_task.task_info.time = get_time_ms();
+
         let next_task_cx_ptr = &next_task.task_cx as *const TaskContext;
         drop(inner);
         let mut _unused = TaskContext::zero_init();
@@ -87,6 +94,16 @@ impl TaskManager {
             __switch(&mut _unused as *mut _, next_task_cx_ptr);
         }
         panic!("unreachable in run_first_task!");
+    }
+
+    fn update_syscall(&self, id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        let task = &mut inner.tasks[current];
+
+        task.task_info.syscall_times[id] += 1;
+
+        // println!("update! {}", task.task_info.syscall_times[id]);
     }
 
     /// Change the status of current `Running` task into `Ready`.
@@ -141,6 +158,14 @@ impl TaskManager {
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;
             inner.current_task = next;
+
+            let task = &mut inner.tasks[next];
+
+            if !task.is_already_running {
+                task.is_already_running = true;
+                task.task_info.time = get_time_ms();
+            }
+
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
             drop(inner);
@@ -151,6 +176,24 @@ impl TaskManager {
             // go back to user mode
         } else {
             panic!("All applications completed!");
+        }
+    }
+
+    fn cp_current_task_info(&self) -> TaskInfo {
+        let mut inner = self.inner.exclusive_access();
+
+        let current = inner.current_task;
+
+        inner.tasks[current].task_info
+    }
+
+    fn current_task_control_block_ref_mut(&self) -> &'static mut TaskControlBlock {
+        let mut inner = self.inner.exclusive_access();
+
+        let current = inner.current_task;
+
+        unsafe {
+            &mut *(&inner.tasks[current] as *const TaskControlBlock as *mut TaskControlBlock)
         }
     }
 }
@@ -201,4 +244,16 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 /// Change the current 'Running' task's program break
 pub fn change_program_brk(size: i32) -> Option<usize> {
     TASK_MANAGER.change_current_program_brk(size)
+}
+
+pub fn update_syscall(id: usize) {
+    TASK_MANAGER.update_syscall(id)
+}
+
+pub fn cp_current_task_info() -> TaskInfo {
+    TASK_MANAGER.cp_current_task_info()
+}
+
+pub fn current_task_control_block_ref_mut() -> &'static mut TaskControlBlock {
+    TASK_MANAGER.current_task_control_block_ref_mut()
 }

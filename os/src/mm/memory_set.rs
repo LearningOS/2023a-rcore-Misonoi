@@ -1,5 +1,6 @@
 //! Implementation of [`MapArea`] and [`MemorySet`].
 
+use alloc::borrow::ToOwned;
 use super::{frame_alloc, FrameTracker};
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
@@ -14,6 +15,7 @@ use alloc::vec::Vec;
 use core::arch::asm;
 use lazy_static::*;
 use riscv::register::satp;
+use crate::task::current_task_control_block_ref_mut;
 
 extern "C" {
     fn stext();
@@ -63,6 +65,31 @@ impl MemorySet {
             None,
         );
     }
+
+    pub fn search_area_index(&self, start_vpn: VirtPageNum, end_vpn: VirtPageNum) -> usize {
+        self.areas.iter().enumerate().find(|(idx, e)| {
+            e.vpn_range.l == start_vpn && e.vpn_range.r == end_vpn
+        }).unwrap_or((usize::MAX, &MapArea::new(VirtAddr::from(0),
+                                                VirtAddr::from(0),
+                                                MapType::Identical, MapPermission::empty()))).0
+    }
+
+    pub fn dealloc(&mut self, idx: usize) {
+        let area = &mut self.areas[idx];
+
+        area.unmap(&mut self.page_table);
+
+        self.areas.remove(idx);
+    }
+
+    pub fn dealloc_precious(&mut self, start_von: VirtPageNum, end_vpn: VirtPageNum) {
+        let idx = self.search_area_index(start_von, end_vpn);
+
+        if idx != usize::MAX {
+            self.dealloc(idx)
+        }
+    }
+
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
@@ -409,4 +436,47 @@ pub fn remap_test() {
         .unwrap()
         .executable(),);
     println!("remap_test passed!");
+}
+
+pub fn _sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
+    let start_va = VirtAddr::from(_start);
+    let end_va = VirtAddr::from(_start + _len);
+
+    let start_vpn = start_va.floor();
+    let end_vpn = end_va.ceil();
+
+    let end_va = VirtAddr::from(end_vpn);
+
+    let memory_set_ref_mut = &mut current_task_control_block_ref_mut().memory_set;
+
+    if (start_vpn.0..end_vpn.0).any(|e| memory_set_ref_mut.page_table.is_mapped(VirtPageNum::from(e))) {
+        return -1;
+    }
+
+    let flag = MapPermission::from_bits((_port << 1 | 16) as u8).unwrap();
+
+    memory_set_ref_mut.insert_framed_area(start_va, end_va, flag);
+
+    0
+}
+
+pub fn _sys_munmap(_start: usize, _len: usize) -> isize {
+    let start_va = VirtAddr::from(_start);
+    let end_va = VirtAddr::from(_start + _len);
+
+    let start_vpn = start_va.floor();
+    let end_vpn = end_va.ceil();
+
+    let start_va = VirtAddr::from(start_vpn);
+    let end_va = VirtAddr::from(end_vpn);
+
+    let memory_set_ref_mut = &mut current_task_control_block_ref_mut().memory_set;
+
+    if (start_vpn.0..end_vpn.0).any(|e| !memory_set_ref_mut.page_table.is_mapped(VirtPageNum::from(e))) {
+        return -1;
+    }
+
+    memory_set_ref_mut.dealloc_precious(start_vpn, end_vpn);
+
+    0
 }
