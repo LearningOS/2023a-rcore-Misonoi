@@ -10,7 +10,7 @@ use crate::mm::memory_set::{_sys_mmap, _sys_munmap, MapArea, MapType};
 use crate::mm::page_table::{PageTable, translated_ref_mut};
 use crate::mm::{MapPermission, VirtAddr, VirtPageNum};
 use crate::syscall::{SYSCALL_EXIT, SYSCALL_GET_TIME, SYSCALL_MMAP, SYSCALL_MUNMAP, SYSCALL_SBRK, SYSCALL_TASK_INFO, SYSCALL_YIELD};
-use crate::task::{cp_current_task_info, current_task_control_block_ref_mut, current_user_token, update_syscall};
+use crate::task::{cp_current_task_info, current_user_token, update_syscall};
 use crate::timer::{get_time_ms, get_time_us};
 
 #[repr(C)]

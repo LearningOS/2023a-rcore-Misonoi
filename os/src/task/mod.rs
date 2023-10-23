@@ -40,15 +40,15 @@ pub struct TaskManager {
     /// total number of tasks
     num_app: usize,
     /// use inner value to get mutable access
-    inner: UPSafeCell<TaskManagerInner>,
+    pub(crate) inner: UPSafeCell<TaskManagerInner>,
 }
 
 /// The task manager inner in 'UPSafeCell'
-struct TaskManagerInner {
+pub struct TaskManagerInner {
     /// task list
-    tasks: Vec<TaskControlBlock>,
+    pub(crate) tasks: Vec<TaskControlBlock>,
     /// id of current `Running` task
-    current_task: usize,
+    pub(crate) current_task: usize,
 }
 
 lazy_static! {
@@ -187,15 +187,6 @@ impl TaskManager {
         inner.tasks[current].task_info
     }
 
-    fn current_task_control_block_ref_mut(&self) -> &'static mut TaskControlBlock {
-        let mut inner = self.inner.exclusive_access();
-
-        let current = inner.current_task;
-
-        unsafe {
-            &mut *(&inner.tasks[current] as *const TaskControlBlock as *mut TaskControlBlock)
-        }
-    }
 }
 
 /// Run the first task in task list.
@@ -252,8 +243,4 @@ pub fn update_syscall(id: usize) {
 
 pub fn cp_current_task_info() -> TaskInfo {
     TASK_MANAGER.cp_current_task_info()
-}
-
-pub fn current_task_control_block_ref_mut() -> &'static mut TaskControlBlock {
-    TASK_MANAGER.current_task_control_block_ref_mut()
 }

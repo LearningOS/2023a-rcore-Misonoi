@@ -15,7 +15,7 @@ use alloc::vec::Vec;
 use core::arch::asm;
 use lazy_static::*;
 use riscv::register::satp;
-use crate::task::current_task_control_block_ref_mut;
+use crate::task::{TASK_MANAGER};
 
 extern "C" {
     fn stext();
@@ -447,7 +447,10 @@ pub fn _sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
 
     let end_va = VirtAddr::from(end_vpn);
 
-    let memory_set_ref_mut = &mut current_task_control_block_ref_mut().memory_set;
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current = inner.current_task;
+
+    let memory_set_ref_mut = &mut inner.tasks[current].memory_set;
 
     if (start_vpn.0..end_vpn.0).any(|e| memory_set_ref_mut.page_table.is_mapped(VirtPageNum::from(e))) {
         return -1;
@@ -470,7 +473,10 @@ pub fn _sys_munmap(_start: usize, _len: usize) -> isize {
     let start_va = VirtAddr::from(start_vpn);
     let end_va = VirtAddr::from(end_vpn);
 
-    let memory_set_ref_mut = &mut current_task_control_block_ref_mut().memory_set;
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current = inner.current_task;
+
+    let memory_set_ref_mut = &mut inner.tasks[current].memory_set;
 
     if (start_vpn.0..end_vpn.0).any(|e| !memory_set_ref_mut.page_table.is_mapped(VirtPageNum::from(e))) {
         return -1;
