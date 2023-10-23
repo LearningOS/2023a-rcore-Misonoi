@@ -2,6 +2,8 @@
 
 #[allow(unused)]
 
+pub const BIG_STRIDE: usize = 1 << 30;
+
 /// user app's stack size
 pub const USER_STACK_SIZE: usize = 4096 * 2;
 /// kernel stack size

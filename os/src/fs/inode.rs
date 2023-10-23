@@ -4,7 +4,7 @@
 //!
 //! `UPSafeCell<OSInodeInner>` -> `OSInode`: for static `ROOT_INODE`,we
 //! need to wrap `OSInodeInner` into `UPSafeCell`
-use super::File;
+use super::{File, StatMode};
 use crate::drivers::BLOCK_DEVICE;
 use crate::mm::UserBuffer;
 use crate::sync::UPSafeCell;
@@ -154,5 +154,22 @@ impl File for OSInode {
             total_write_size += write_size;
         }
         total_write_size
+    }
+
+    fn get_inode_id(&self) -> u64 {
+        self.inner.exclusive_access().inode.inode_id as u64
+    }
+    fn get_nlink(&self) -> u32 {
+        ROOT_INODE.count_inode_by_id(
+            self.get_inode_id() as u32
+        )
+    }
+
+    fn get_mode(&self) -> StatMode {
+        if self.get_inode_id() == 0 {
+            StatMode::DIR
+        } else {
+            StatMode::FILE
+        }
     }
 }
