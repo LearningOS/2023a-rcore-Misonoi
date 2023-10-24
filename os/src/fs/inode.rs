@@ -156,4 +156,7 @@ impl File for OSInode {
         }
         total_write_size
     }
+    fn as_any(&self) -> &dyn _core::any::Any {
+        self
+    }
 }

@@ -6,8 +6,10 @@
 
 use super::__switch;
 use super::{fetch_task, TaskStatus};
-use super::{ProcessControlBlock, TaskContext, TaskControlBlock};
+use super::{TaskContext, TaskControlBlock, ProcessControlBlock};
+use crate::config::MAX_SYSCALL_NUM;
 use crate::sync::UPSafeCell;
+use crate::timer::get_time_ms;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use lazy_static::*;
@@ -57,6 +59,12 @@ pub fn run_tasks() {
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
+            if !task_inner.is_started {
+                task_inner.start_time = get_time_ms();
+                println!("Start_time in run_next_task={}", task_inner.start_time);
+                task_inner.is_started = true;
+            }
+            task_inner.stride += 32768 / task_inner.priority;
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
             task_inner.task_status = TaskStatus::Running;
             // release coming task_inner manually
@@ -117,6 +125,35 @@ pub fn current_trap_cx_user_va() -> usize {
 /// get the top addr of kernel stack
 pub fn current_kstack_top() -> usize {
     current_task().unwrap().kstack.get_top()
+}
+
+/// Get start running time
+pub fn get_current_start_running_time() -> usize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .start_time
+}
+
+/// Record syscall(count)
+pub fn record_current_syscall(call_id: usize) {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .syscall_count.entry(call_id)
+            .and_modify(| call_times | *call_times += 1).or_insert(1);
+}
+
+/// Write syscall times to an array
+pub fn write_current_syscall_times_array(syscall_times: &mut [u32; MAX_SYSCALL_NUM]) {
+    let current = current_task().unwrap();
+    let inner = current.inner_exclusive_access();
+    for syscall_id in 0..MAX_SYSCALL_NUM {
+        match inner.syscall_count.get(&syscall_id) {
+            Some(syscall_time) => syscall_times[syscall_id] = *syscall_time as u32,
+            None => syscall_times[syscall_id] = 0,
+        };
+    }
 }
 
 /// Return to idle control flow for new scheduling

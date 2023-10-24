@@ -94,6 +94,30 @@ impl MemorySet {
         }
         self.areas.push(map_area);
     }
+    /// Remove a frame. ZZH
+    pub fn remove_framed_area(
+        &mut self,
+        start_va: VirtAddr,
+        end_va: VirtAddr,
+    ) {
+        let mut has_found = false;
+        for idx in 0..self.areas.len() {
+            if self.areas[idx].vpn_range.get_start() == start_va.floor()&& self.areas[idx].vpn_range.get_end() == end_va.ceil() {
+                self.areas.remove(idx);
+                // println!("DEBUG: Successfully find a frame to remove.");
+                has_found = true;
+                break;
+            }
+        }
+        if !has_found {
+            // println!("DEBUG: -------CANT FOUND!");
+            return;
+        }
+        // [,)
+        for pn in usize::from(start_va.floor())..usize::from(end_va.ceil()) {
+            self.page_table.unmap(VirtPageNum::from(pn));
+        }
+    }
     /// Mention that trampoline is not collected by areas.
     fn map_trampoline(&mut self) {
         self.page_table.map(

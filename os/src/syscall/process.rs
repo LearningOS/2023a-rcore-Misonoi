@@ -1,11 +1,14 @@
 use crate::{
-    config::MAX_SYSCALL_NUM,
+    config::{MAX_SYSCALL_NUM, PAGE_SIZE},
     fs::{open_file, OpenFlags},
-    mm::{translated_ref, translated_refmut, translated_str},
+    mm::{translated_ref, translated_refmut, translated_str, translated_byte_buffer, VirtAddr, MapPermission},
     task::{
-        current_process, current_task, current_user_token, exit_current_and_run_next, pid2process,
-        suspend_current_and_run_next, SignalFlags, TaskStatus,
+        current_process, current_task, current_user_token,
+        exit_current_and_run_next, pid2process, suspend_current_and_run_next,
+        TaskStatus, SignalFlags,
+        write_current_syscall_times_array, get_current_start_running_time,
     },
+    timer::get_time_ms
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
 
@@ -164,22 +167,35 @@ pub fn sys_kill(pid: usize, signal: u32) -> isize {
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     trace!(
-        "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
+        "kernel:pid[{}] sys_get_time",
         current_task().unwrap().process.upgrade().unwrap().getpid()
     );
-    -1
+    let ms = get_time_ms();
+    let tmp_timeval = TimeVal{sec: ms / 1_000, usec: (ms * 1_000) % 1_000_000};
+    let mut remain_len = core::mem::size_of::<TimeVal>();
+    let buffers = translated_byte_buffer(current_user_token(), _ts as *const u8, remain_len);
+    let mut tmp_timeval_ptr = &tmp_timeval as *const TimeVal as *const u8;
+    for buffer in buffers {
+        // if buffer.len() <= remain_len {
+            for byte in buffer {
+                unsafe {
+                    *byte = *tmp_timeval_ptr;
+                    tmp_timeval_ptr = tmp_timeval_ptr.add(1);
+                }
+                remain_len -= 1;
+            }
+        // }
+    }
+    if remain_len == 0 {
+        0
+    } else {
+        -1
+    }
 }
-
-/// task_info syscall
-///
 /// YOUR JOB: Finish sys_task_info to pass testcases
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TaskInfo`] is splitted by two pages ?
 pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_task_info NOT IMPLEMENTED",
-        current_task().unwrap().process.upgrade().unwrap().getpid()
-    );
     -1
 }
 
@@ -187,21 +203,12 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
 ///
 /// YOUR JOB: Implement mmap.
 pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_mmap NOT IMPLEMENTED",
-        current_task().unwrap().process.upgrade().unwrap().getpid()
-    );
     -1
 }
 
-/// munmap syscall
-///
+
 /// YOUR JOB: Implement munmap.
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_munmap NOT IMPLEMENTED",
-        current_task().unwrap().process.upgrade().unwrap().getpid()
-    );
     -1
 }
 
@@ -224,14 +231,9 @@ pub fn sys_spawn(_path: *const u8) -> isize {
     );
     -1
 }
-
 /// set priority syscall
 ///
 /// YOUR JOB: Set task priority
 pub fn sys_set_priority(_prio: isize) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
-        current_task().unwrap().process.upgrade().unwrap().getpid()
-    );
     -1
 }

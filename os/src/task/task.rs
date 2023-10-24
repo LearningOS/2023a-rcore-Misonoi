@@ -2,9 +2,15 @@
 
 use super::id::TaskUserRes;
 use super::{kstack_alloc, KernelStack, ProcessControlBlock, TaskContext};
-use crate::trap::TrapContext;
-use crate::{mm::PhysPageNum, sync::UPSafeCell};
-use alloc::sync::{Arc, Weak};
+use crate::{
+    mm::PhysPageNum,
+    sync::UPSafeCell,
+    trap::TrapContext,
+};
+use alloc::{
+    sync::{Arc, Weak},
+    collections::BTreeMap,
+};
 use core::cell::RefMut;
 
 /// Task control block structure
@@ -41,6 +47,20 @@ pub struct TaskControlBlockInner {
     pub task_status: TaskStatus,
     /// It is set when active exit or execution error occurs
     pub exit_code: Option<i32>,
+
+    /// The task syscall counts
+    pub syscall_count: BTreeMap<usize, usize>,
+
+    /// Start running time
+    pub start_time: usize,
+    /// debug: is run
+    pub is_started: bool,
+
+    /// the length of running
+    pub stride: usize,
+
+    /// priority
+    pub priority: usize,
 }
 
 impl TaskControlBlockInner {
@@ -75,6 +95,11 @@ impl TaskControlBlock {
                     task_cx: TaskContext::goto_trap_return(kstack_top),
                     task_status: TaskStatus::Ready,
                     exit_code: None,
+                    syscall_count: BTreeMap::new(),
+                    start_time: 0,
+                    is_started: false,
+                    priority: 16,
+                    stride: 0,
                 })
             },
         }

@@ -111,10 +111,11 @@ use process::*;
 use sync::*;
 use thread::*;
 
-use crate::fs::Stat;
+use crate::{fs::Stat, task::record_current_syscall};
 
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 4]) -> isize {
+    record_current_syscall(syscall_id);
     match syscall_id {
         SYSCALL_DUP => sys_dup(args[0]),
         SYSCALL_LINKAT => sys_linkat(args[1] as *const u8, args[3] as *const u8),

@@ -35,6 +35,7 @@ pub use manager::{add_task, pid2process, remove_from_pid2process, remove_task, w
 pub use processor::{
     current_kstack_top, current_process, current_task, current_trap_cx, current_trap_cx_user_va,
     current_user_token, run_tasks, schedule, take_current_task,
+    get_current_start_running_time, record_current_syscall, write_current_syscall_times_array,
 };
 pub use signal::SignalFlags;
 pub use task::{TaskControlBlock, TaskStatus};
@@ -84,6 +85,20 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // record exit code
     task_inner.exit_code = Some(exit_code);
     task_inner.res = None;
+    println!("*_* Tid {} calling exit_current_and_run_next", tid);
+    // remove need in deadlock detection
+    for need in process.inner_exclusive_access().mutex_need[tid].iter_mut() {
+        *need = 0;
+    }
+    for allocated in process.inner_exclusive_access().mutex_allocated[tid].iter_mut() {
+        *allocated = 0;
+    }
+    for need in process.inner_exclusive_access().semaphore_need[tid].iter_mut() {
+        *need = 0;
+    }
+    for allocated in process.inner_exclusive_access().semaphore_allocated[tid].iter_mut() {
+        *allocated = 0;
+    }
     // here we do not remove the thread since we are still using the kstack
     // it will be deallocated when sys_waittid is called
     drop(task_inner);

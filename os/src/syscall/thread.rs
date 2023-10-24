@@ -3,7 +3,7 @@ use crate::{
     task::{add_task, current_task, TaskControlBlock},
     trap::{trap_handler, TrapContext},
 };
-use alloc::sync::Arc;
+use alloc::{sync::Arc, vec::Vec};
 /// thread create syscall
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     trace!(
@@ -41,6 +41,37 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
         tasks.push(None);
     }
     tasks[new_task_tid] = Some(Arc::clone(&new_task));
+    while process_inner.mutex_need.len() < new_task_tid + 1 {    
+        process_inner.mutex_need.push(Vec::new());
+        if process_inner.mutex_need.len() > 1 {
+            // In case that this tid has been used by a thread which has exited, fill mutex_need with 0
+            let len = process_inner.mutex_need.first().unwrap().len();
+            for _ in 0..len {
+                process_inner.mutex_need.last_mut().unwrap().push(0);
+            }
+        }
+        process_inner.mutex_allocated.push(Vec::new());
+        if process_inner.mutex_allocated.len() > 1 {
+            let len = process_inner.mutex_allocated.first().unwrap().len();
+            for _ in 0..len {
+                process_inner.mutex_allocated.last_mut().unwrap().push(0);
+            }
+        }
+        process_inner.semaphore_need.push(Vec::new());
+        if process_inner.semaphore_need.len() > 1 {
+            let len = process_inner.semaphore_need.first().unwrap().len();
+            for _ in 0..len {
+                process_inner.semaphore_need.last_mut().unwrap().push(0);
+            }
+        }
+        process_inner.semaphore_allocated.push(Vec::new());
+        if process_inner.semaphore_allocated.len() > 1 {
+            let len = process_inner.semaphore_allocated.first().unwrap().len();
+            for _ in 0..len {
+                process_inner.semaphore_allocated.last_mut().unwrap().push(0);
+            }
+        }
+    }
     let new_task_trap_cx = new_task_inner.get_trap_cx();
     *new_task_trap_cx = TrapContext::app_init_context(
         entry,
